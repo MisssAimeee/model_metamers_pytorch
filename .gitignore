@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# Vendored deep-avsr clones — keep out of this repo's history.
+deep_avsr/
+robustness/deep_avsr/
