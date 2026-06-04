@@ -23,8 +23,6 @@ This fork adds an audio-visual metamer scaffold and AV run outputs prepared by A
 * [Metamer generation from the command line](#metamer-generation-from-the-command-line)
 * [Null distribution generation from the command line](#null-distribution-generation-from-the-command-line)
 * [Setup configuration for your own model](#setup-configuration-for-your-own-model)
-* [Citation](#citation)
-* [Authors](#authors)
 * [Acknowledgments](#acknowledgments)
 * [License](#license)
 
@@ -77,9 +75,9 @@ The included AV scaffold is **deep_avsr-inspired but not weight-compatible by de
 The `.gitignore` excludes local vendor clones (`deep_avsr/`, `robustness/deep_avsr/`) to
 avoid committing external source copies and virtual environments.
 
-## What differs from MisssAimeee/model_metamers_pytorch
+## What differs from model_metamers_pytorch
 
-Compared with [`MisssAimeee/model_metamers_pytorch`](https://github.com/MisssAimeee/model_metamers_pytorch):
+Compared with `model_metamers_pytorch`:
 
 - Added AV metamer scaffold modules:
   - `analysis_scripts/AY_generate_av_metamers.py`
@@ -229,23 +227,6 @@ model loader file (see [model_analysis_folders/visual_models/resnet50_l2_3_robus
 4) Once the `build_network.py` file is set up, you can use any of the analysis_scripts included in the repo for metamer generation, null 
 distribution measuring, or analysis! We typically place the output from the analysis in the model directory with the `build_network.py` file, so that 
 everything for a given model stays together. 
-
-# Citation
-This repository was released with the following pre-print. If you use this repository in your research, please cite as:
-
-[Feather, J., Leclerc, G., Mądry, A., & McDermott, J. H. (2023). Model metamers reveal divergent invariances between biological and artificial neural networks. Nature Neuroscience.](https://www.nature.com/articles/s41593-023-01442-0)
-
-```
-@article{feather2023model,
-  title={Model metamers illuminate divergences between biological and artificial neural networks},
-  author={Feather, Jenelle and Leclerc, Guillaume and M{\k{a}}dry, Aleksander and McDermott, Josh H},
-  journal={Nature Neuroscience},
-  year={2023},
-}
-```
-
-# Authors
-* **Jenelle Feather** (https://github.com/jfeather)
 
 # Acknowledgments
 * McDermott Lab: [https://github.com/mcdermottLab](https://github.com/mcdermottLab)
