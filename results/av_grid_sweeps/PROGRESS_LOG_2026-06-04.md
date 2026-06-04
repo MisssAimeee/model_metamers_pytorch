@@ -9,6 +9,12 @@
 - Active partial run:
   - `iter500_step0p01_initnoise_gl64_seed2_eps1000p0` (`52/126` metamers written at snapshot time)
 
+## Important reporting note
+
+- These sweep outputs are **intermediate checkpoints only**.
+- Do **not** treat `summary_runs.csv` or plots in this folder as final results until all 24 runs complete.
+- Resume the sweep tomorrow and regenerate summaries/plots after completion.
+
 ## Remaining runs (in order)
 
 1. `iter500_step0p01_initnoise_gl64_seed2_eps1000p0` (partial, currently running)

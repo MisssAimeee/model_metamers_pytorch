@@ -1,0 +1,13 @@
+{
+  "weights": "/orcd/data/jhm/001/urops/aimee_yu/deep_avsr_weights/DeepAVSR_Weights/audio-visual.pt",
+  "stimuli_dir": "/orcd/home/002/aimeeyu/mms_project/model_metamers_pytorch/stimuli/MUSHRA_42_NATURAL",
+  "out_dir": "/orcd/home/002/aimeeyu/mms_project/model_metamers_pytorch/results/av_grid_sweeps/iter500_step0p003_initnoise_gl64_seed0_eps1000p0",
+  "target_layer": "audioEncoder",
+  "n_iters": 500,
+  "step_size": 0.003,
+  "eps": 1000.0,
+  "init": "noise",
+  "gl_iters": 64,
+  "seed": 0,
+  "limit_stim": 0
+}
