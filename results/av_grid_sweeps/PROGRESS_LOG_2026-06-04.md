@@ -57,3 +57,10 @@ nohup PYTHONUNBUFFERED=1 python -u run_av_metamer_grid.py --resume > sweep_resum
 
 - `--resume` skips completed runs and resets only interrupted partial runs.
 - The nested-tensor PyTorch warning in `deep_avsr` is expected and does not invalidate results.
+
+## Late-day checkpoint update
+
+- Sweep was manually paused after saving this checkpoint.
+- A new partial run directory also exists:
+  - `iter1500_step0p003_initnoise_gl32_seed0_eps1000p0` (incomplete)
+- Resume still uses the same command (`--resume`) and will continue from remaining runs.
