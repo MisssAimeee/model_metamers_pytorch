@@ -1,10 +1,7 @@
-[![DOI](https://zenodo.org/badge/498570644.svg)](https://zenodo.org/badge/latestdoi/498570644)
+# Deep AVSR Metamer
 
-Model metamers reveal divergent invariances between biological and artificial neural networks.<br>
-Feather, Leclerc, Mądry & McDermott. Nature Neuroscience (2023). 
-==============
-![Model Metamer Generation, Human Experiments, and Example Visual Model Metamers](FigureExperimentLogic.png)
-==============
+Audio-visual metamer generation experiments built on the Feather et al. framework.
+
 ## Attribution
 
 This repository is based on the original
