@@ -5,8 +5,18 @@ Feather, Leclerc, Mądry & McDermott. Nature Neuroscience (2023).
 ==============
 ![Model Metamer Generation, Human Experiments, and Example Visual Model Metamers](FigureExperimentLogic.png)
 ==============
+## Attribution
+
+This repository is based on the original
+[`jenellefeather/model_metamers_pytorch`](https://github.com/jenellefeather/model_metamers_pytorch)
+codebase and follows the same core metamer-generation framework from Feather et al. (2023).
+
+This fork adds an audio-visual metamer scaffold and AV run outputs prepared by Aimee Yu.
+
 ## Contents
 * [Overview](#overview)
+* [How the deep_avsr backbone works](#how-the-deep_avsr-backbone-works)
+* [What differs from MisssAimeee/model_metamers_pytorch](#what-differs-from-misssaimeeemodel_metamers_pytorch)
 * [Repo Directories](#repo-directories)
 * [Installation Guide](#installation-guide)
 * [Feather et al. 2023 figure replications](#feather-et-al-2023-figure-replications)
@@ -27,6 +37,63 @@ Overview
 Deep neural network models of sensory systems are often proposed to learn representational transformations with invariances like those in the brain. To reveal these invariances we generated "model metamers" — stimuli whose activations within a model stage are matched to those of a natural stimulus. In the paper ["Model metamers reveal divergent invariances between biological and artificial neural networks"](https://www.nature.com/articles/s41593-023-01442-0), we demonstrated that metamers for state-of-the-art supervised and unsupervised neural network models of vision and audition were often completely unrecognizable to humans when generated from deep model stages, suggesting differences between model and human invariances. Targeted model changes improved human-recognizability of model metamers, but did not eliminate the overall human-model discrepancy. The human-recognizability of a model's metamers was well predicted by their recognizability by other models, suggesting that models learn idiosyncratic invariances in addition to those required by the task. Metamer recognition dissociated from both traditional brain-based benchmarks and adversarial vulnerability, revealing a distinct failure mode of existing sensory models and providing a complementary benchmark for model assessment.  
 
 Here, we provide code for replicating the main analyses in the paper, including instructions to download PyTorch checkpoints for the analyzed models. We additionally provide code and a tutorial for generating metamers from a custom model, comparing the metamers to a "null distribution" to validate optimization success, and example experiments to run on Amazon Mechanical Turk to test human recognition of generated model metamers. 
+
+## How the deep_avsr backbone works
+
+The AV metamer path introduced in this fork uses a `deep_avsr`-inspired model contract
+implemented in `robustness/audio_models/av_model.py` and wired by
+`robustness/AY_build_network_av.py`.
+
+### Backbone structure
+
+1. **Audio branch**
+   - Input shape: `(B, 1, 32000)` (2 s @ 16 kHz).
+   - Differentiable STFT magnitude frontend (`n_fft=640`, `hop=160`) produces framewise features.
+   - Linear projection + sinusoidal positional encoding.
+   - 6-layer Transformer encoder (`audio.transformer.0 ... audio.transformer.5`).
+
+2. **Video branch**
+   - Input shape: `(B, 3, 50, 112, 112)` (2 s @ 25 fps).
+   - RGB to grayscale projection, 3D conv stem, framewise 2D conv blocks.
+   - Per-frame projection + positional encoding.
+   - 6-layer Transformer encoder (`video.transformer.0 ... video.transformer.5`).
+
+3. **Audio-video fusion**
+   - 6 bidirectional cross-attention fusion layers (`fusion.cross_attn.0 ... fusion.cross_attn.5`).
+   - Classifier head pools audio/video tokens, concatenates pooled embeddings, predicts logits.
+
+4. **Metamer optimisation targets**
+   - Latent dictionary keys are exposed in Feather-compatible format (`allowed_metamer_layers`).
+   - Typical AV metamer targets are fusion layers such as `fusion.cross_attn.2`.
+
+### AV metamer synthesis flow
+
+`analysis_scripts/AY_generate_av_metamers.py`:
+- loads a natural reference pair (audio + video),
+- captures target activations at a selected layer,
+- runs PGD-style optimisation in `single-audio`, `single-video`, or `joint` mode,
+- saves optimized tensors, reconstructed WAV, video frames, and final match distance.
+
+### Notes on compatibility
+
+The included AV scaffold is **deep_avsr-inspired but not weight-compatible by default**.
+The `.gitignore` excludes local vendor clones (`deep_avsr/`, `robustness/deep_avsr/`) to
+avoid committing external source copies and virtual environments.
+
+## What differs from MisssAimeee/model_metamers_pytorch
+
+Compared with [`MisssAimeee/model_metamers_pytorch`](https://github.com/MisssAimeee/model_metamers_pytorch):
+
+- Added AV metamer scaffold modules:
+  - `analysis_scripts/AY_generate_av_metamers.py`
+  - `robustness/AY_build_network_av.py`
+  - `robustness/audio_models/av_model.py`
+  - `docs/testing/AY_generate_av_metamers_testing_notes.md`
+- Updated `robustness/audio_models/__init__.py` to export AV model builders.
+- Added `.gitignore` entries for local deep_avsr clones.
+- Added AV run artifacts under:
+  - `results/av_metamers_42_natural/`
+  - `stimuli/MUSHRA_42_NATURAL/`
 
 Repo Directories
 ================
