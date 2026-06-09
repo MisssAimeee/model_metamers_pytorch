@@ -40,16 +40,23 @@ import torchaudio
 from scipy.io import wavfile
 import scipy.signal as scisig
 
-REPO_ROOT   = Path(__file__).parent
-AV_DIR      = REPO_ROOT / "model_metamers_pytorch" / "deep_avsr" / "audio_visual"
+REPO_ROOT = Path(__file__).parent
+if (REPO_ROOT / "deep_avsr").exists():
+    AV_DIR        = REPO_ROOT / "deep_avsr" / "audio_visual"
+    _RESULTS_BASE = REPO_ROOT / "results"
+    _STIMULI_BASE = REPO_ROOT / "stimuli"
+else:
+    AV_DIR        = REPO_ROOT / "model_metamers_pytorch" / "deep_avsr" / "audio_visual"
+    _RESULTS_BASE = REPO_ROOT / "model_metamers_pytorch" / "results"
+    _STIMULI_BASE = REPO_ROOT / "model_metamers_pytorch" / "stimuli"
 sys.path.insert(0, str(AV_DIR))
 from config import args as _cfg
 from models.av_net import AVNet
 from utils.decoders import ctc_greedy_decode
 
 AV_WEIGHTS  = "/orcd/data/jhm/001/urops/aimee_yu/deep_avsr_weights/DeepAVSR_Weights/audio-visual.pt"
-STIMULI_DIR = REPO_ROOT / "model_metamers_pytorch" / "stimuli" / "MUSHRA_42_NATURAL"
-OUT_ROOT    = REPO_ROOT / "model_metamers_pytorch" / "results" / "layer_sweep"
+STIMULI_DIR = _STIMULI_BASE / "MUSHRA_42_NATURAL"
+OUT_ROOT    = _RESULTS_BASE / "layer_sweep"
 TARGET_SR   = 16_000
 
 ALL_LAYERS  = [
@@ -252,9 +259,9 @@ def category_from_stim(stim_folder: str) -> str:
 
 def parse_args():
     p = argparse.ArgumentParser(description="Layer-sweep metamer generation")
-    p.add_argument("--weights",      default=AV_WEIGHTS)
-    p.add_argument("--stimuli-dir",  type=Path, default=STIMULI_DIR)
-    p.add_argument("--out-root",     type=Path, default=OUT_ROOT)
+    p.add_argument("--weights",     default=AV_WEIGHTS)
+    p.add_argument("--stimuli-dir", type=Path, default=STIMULI_DIR)
+    p.add_argument("--out-root",    type=Path, default=OUT_ROOT)
     p.add_argument("--layers",       default="all",
                    help="Comma-separated list of layers, or 'all'")
     p.add_argument("--n-iters",      type=int,   default=500)

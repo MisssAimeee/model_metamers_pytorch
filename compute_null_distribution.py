@@ -38,7 +38,15 @@ from scipy.io import wavfile
 import scipy.signal as scisig
 
 REPO_ROOT = Path(__file__).parent
-AV_DIR    = REPO_ROOT / "model_metamers_pytorch" / "deep_avsr" / "audio_visual"
+# Support running from inside model_metamers_pytorch/ OR from the parent dir
+if (REPO_ROOT / "deep_avsr").exists():
+    AV_DIR       = REPO_ROOT / "deep_avsr" / "audio_visual"
+    _RESULTS_BASE = REPO_ROOT / "results"
+    _STIMULI_BASE = REPO_ROOT / "stimuli"
+else:
+    AV_DIR        = REPO_ROOT / "model_metamers_pytorch" / "deep_avsr" / "audio_visual"
+    _RESULTS_BASE = REPO_ROOT / "model_metamers_pytorch" / "results"
+    _STIMULI_BASE = REPO_ROOT / "model_metamers_pytorch" / "stimuli"
 sys.path.insert(0, str(AV_DIR))
 from config import args as _cfg
 from models.av_net import AVNet
@@ -177,14 +185,14 @@ def category_from_stim(stim_folder: str) -> str:
 def parse_args():
     p = argparse.ArgumentParser(description="Null-distribution validation")
     p.add_argument("--results-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "av_metamers_42_natural",
+                   default=_RESULTS_BASE / "av_metamers_42_natural",
                    help="Directory containing comparison.csv and stimuli sub-folders")
     p.add_argument("--stimuli-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "stimuli" / "MUSHRA_42_NATURAL")
+                   default=_STIMULI_BASE / "MUSHRA_42_NATURAL")
     p.add_argument("--weights", default=AV_WEIGHTS)
     p.add_argument("--target-layer", default=TARGET_LAYER)
     p.add_argument("--out-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "null_validation")
+                   default=_RESULTS_BASE / "null_validation")
     p.add_argument("--no-plot", action="store_true", help="Skip matplotlib (headless)")
     p.add_argument("--save-pairwise", action="store_true",
                    help="Save full N×(N-1) cross-pair CSV (can be large)")

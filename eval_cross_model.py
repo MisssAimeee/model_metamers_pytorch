@@ -44,6 +44,12 @@ from scipy.io import wavfile
 import scipy.signal as scisig
 
 REPO_ROOT = Path(__file__).parent
+if (REPO_ROOT / "deep_avsr").exists():
+    _RESULTS_BASE = REPO_ROOT / "results"
+    _STIMULI_BASE = REPO_ROOT / "stimuli"
+else:
+    _RESULTS_BASE = REPO_ROOT / "model_metamers_pytorch" / "results"
+    _STIMULI_BASE = REPO_ROOT / "model_metamers_pytorch" / "stimuli"
 TARGET_SR = 16_000
 
 MFCC_N_MFCC    = 40
@@ -173,11 +179,11 @@ def try_load_wav2vec2():
 def parse_args():
     p = argparse.ArgumentParser(description="Cross-model recognizability evaluation")
     p.add_argument("--results-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "av_metamers_42_natural")
+                   default=_RESULTS_BASE / "av_metamers_42_natural")
     p.add_argument("--stimuli-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "stimuli" / "MUSHRA_42_NATURAL")
+                   default=_STIMULI_BASE / "MUSHRA_42_NATURAL")
     p.add_argument("--out-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "cross_model_eval")
+                   default=_RESULTS_BASE / "cross_model_eval")
     p.add_argument("--no-wav2vec2", action="store_true",
                    help="Skip Wav2Vec2 even if transformers is available")
     p.add_argument("--no-plot", action="store_true")

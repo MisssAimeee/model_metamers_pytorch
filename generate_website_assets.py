@@ -34,6 +34,12 @@ from scipy.io import wavfile
 import scipy.signal as scisig
 
 REPO_ROOT = Path(__file__).parent
+if (REPO_ROOT / "deep_avsr").exists():
+    _RESULTS_BASE = REPO_ROOT / "results"
+    _STIMULI_BASE = REPO_ROOT / "stimuli"
+else:
+    _RESULTS_BASE = REPO_ROOT / "model_metamers_pytorch" / "results"
+    _STIMULI_BASE = REPO_ROOT / "model_metamers_pytorch" / "stimuli"
 TARGET_SR = 16_000
 
 
@@ -134,13 +140,13 @@ def safe_symlink(src: Path, dst: Path):
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--base-results-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "av_metamers_42_natural")
+                   default=_RESULTS_BASE / "av_metamers_42_natural")
     p.add_argument("--layer-sweep-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "layer_sweep")
+                   default=_RESULTS_BASE / "layer_sweep")
     p.add_argument("--null-stats", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "results" / "null_validation" / "null_stats.json")
+                   default=_RESULTS_BASE / "null_validation" / "null_stats.json")
     p.add_argument("--stimuli-dir", type=Path,
-                   default=REPO_ROOT / "model_metamers_pytorch" / "stimuli" / "MUSHRA_42_NATURAL")
+                   default=_STIMULI_BASE / "MUSHRA_42_NATURAL")
     p.add_argument("--out-dir", type=Path, default=REPO_ROOT / "website")
     p.add_argument("--no-spectrograms", action="store_true",
                    help="Skip spectrogram generation (faster rebuild)")
