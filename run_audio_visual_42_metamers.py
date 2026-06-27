@@ -138,9 +138,16 @@ def _stft_params():
 def prepare_stft(wav_path: Path, device) -> tuple:
     """Read WAV and compute the STFT magnitude exactly as AVNet expects.
 
+    The model requires a minimum sequence length (MAIN_REQ_INPUT_LENGTH), so
+    short clips are zero-padded symmetrically.  We record the STFT frame range
+    occupied by the *real* (unpadded) signal so the reconstructed metamer can be
+    cropped back to the original duration instead of leaving silence/noise tails.
+
     Returns:
         audBatch : (T, 1, F) float32, on device
         lenBatch : (1,)      int, on device
+        meta     : dict with valid_start (frame), n_real (frames),
+                   target_samples (exact output length to reconstruct to)
     """
     sr, data = wavfile.read(str(wav_path))
     data = data.astype(np.float32)
@@ -156,6 +163,8 @@ def prepare_stft(wav_path: Path, device) -> tuple:
     if len(data) < min_len:
         data = np.pad(data, (0, min_len - len(data)), "constant")
 
+    target_samples = len(data)   # exact length the metamer wav should match
+
     maxval = np.max(np.abs(data))
     if maxval > 0:
         data = data / maxval
@@ -169,44 +178,60 @@ def prepare_stft(wav_path: Path, device) -> tuple:
         boundary=None, padded=False,
     )
     audInp = np.abs(stftVals).T   # (T_stft, F)
+    n_real = audInp.shape[0]      # STFT frames of the real signal
 
     reqInpLen = _cfg["MAIN_REQ_INPUT_LENGTH"]
     inpLen = int(np.ceil(len(audInp) / 4))
     lp = int(np.floor((4 * inpLen - len(audInp)) / 2))
     rp = int(np.ceil( (4 * inpLen - len(audInp)) / 2))
     audInp = np.pad(audInp, ((lp, rp), (0, 0)), "constant")
+    valid_start = lp
     if inpLen < reqInpLen:
         lp2 = int(np.floor((reqInpLen - inpLen) / 2))
         rp2 = int(np.ceil( (reqInpLen - inpLen) / 2))
         audInp = np.pad(audInp, ((4 * lp2, 4 * rp2), (0, 0)), "constant")
+        valid_start += 4 * lp2
 
     inpLen = int(len(audInp) / 4)
     audBatch = torch.from_numpy(audInp).unsqueeze(1).float().to(device)   # (T, 1, F)
     lenBatch = torch.tensor([inpLen]).int().to(device)
-    return audBatch, lenBatch
+    meta = {"valid_start": valid_start, "n_real": n_real, "target_samples": target_samples}
+    return audBatch, lenBatch, meta
 
 
-def stft_to_wav(stft_mag: torch.Tensor, out_path: Path):
+def stft_to_wav(stft_mag: torch.Tensor, out_path: Path,
+                crop: tuple = None, target_samples: int = None):
     """Reconstruct a wav from a STFT magnitude tensor using Griffin-Lim.
 
     Args:
-        stft_mag: (T, 1, F) float, on any device
+        stft_mag       : (T, 1, F) float, on any device
+        crop           : optional (start_frame, n_frames) to keep only the
+                         real-signal region of a zero-padded STFT
+        target_samples : optional exact output length (trim/pad to match input)
     """
     win_len, hop_len = _stft_params()
     mag = stft_mag.detach().cpu().float()
     if mag.dim() == 3:
         mag = mag.squeeze(1)       # (T, F)
+    if crop is not None:
+        start, n = crop
+        mag = mag[start:start + n]  # drop zero-padded frames at both ends
     mag = mag.T.unsqueeze(0)       # (1, F, T) — GriffinLim expects (*, F, T)
 
     gl = torchaudio.transforms.GriffinLim(
         n_fft=win_len,
         hop_length=hop_len,
         win_length=win_len,
-        window_fn=torch.hann_window,
+        window_fn=torch.hamming_window,   # match analysis window (STFT_WINDOW)
         n_iter=GL_ITERS,
         power=1.0,   # magnitude (not power) spectrogram
     )
     wav = gl(mag).squeeze(0)                            # (T_audio,)
+    if target_samples is not None:
+        if wav.numel() >= target_samples:
+            wav = wav[:target_samples]
+        else:
+            wav = F.pad(wav, (0, target_samples - wav.numel()))
     wav = wav / wav.abs().max().clamp_min(1e-8)         # normalise to [-1, 1]
     wav_int16 = (wav.clamp(-1, 1) * 32767).short().numpy()
     from scipy.io import wavfile as _wf
@@ -273,7 +298,7 @@ def synthesize_stft_metamer(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def predict_wav(model: AVNetWithLatent, wav_path: Path, device) -> str:
-    audBatch, lenBatch = prepare_stft(wav_path, device)
+    audBatch, lenBatch, _ = prepare_stft(wav_path, device)
     with torch.no_grad():
         outputBatch = model(audBatch)
     predBatch, _ = ctc_greedy_decode(
@@ -379,7 +404,7 @@ def main():
             done += 1
             print(f"[{done}/{total_wavs}] {stim_dir.name}/{wav_path.name}")
 
-            ref_stft, _ = prepare_stft(wav_path, device)
+            ref_stft, _, meta = prepare_stft(wav_path, device)
             # Make each stimulus deterministic but unique per run seed.
             local_seed = args.seed + done
             random.seed(local_seed)
@@ -395,7 +420,11 @@ def main():
             stim_out.mkdir(parents=True, exist_ok=True)
 
             metamer_wav = stim_out / "metamer_audio.wav"
-            stft_to_wav(met_stft, metamer_wav)
+            stft_to_wav(
+                met_stft, metamer_wav,
+                crop=(meta["valid_start"], meta["n_real"]),
+                target_samples=meta["target_samples"],
+            )
             (stim_out / "match_distance.txt").write_text(
                 f"{TARGET_LAYER}\t{dist:.6f}\n"
             )

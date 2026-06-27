@@ -1,0 +1,32 @@
+{
+  "n": 126,
+  "avsr_mean": 0.12295057936507936,
+  "mfcc_l2_mean": 1.7284558253968254,
+  "mfcc_cosine_mean": 0.7365603888888889,
+  "pearsonr_avsr_vs_mfcc_l2": -0.02156427330477845,
+  "pearsonr_p": 0.810583123321062,
+  "interpretation": "Positive correlation (r>0.4) \u2192 both models agree on distance, suggesting shared/perceptual invariances. Near-zero or negative correlation \u2192 model-specific invariances.",
+  "per_category": {
+    "environment": {
+      "n": 54,
+      "avsr_mean": 0.08750068518518518,
+      "mfcc_l2_mean": 1.9180767407407406,
+      "pearsonr": 0.1979532941715189,
+      "pearsonr_p": 0.15132725248895745
+    },
+    "music": {
+      "n": 42,
+      "avsr_mean": 0.143632,
+      "mfcc_l2_mean": 1.3015451666666666,
+      "pearsonr": -0.18399316822076153,
+      "pearsonr_p": 0.24344567071326254
+    },
+    "speech": {
+      "n": 30,
+      "avsr_mean": 0.15780639999999999,
+      "mfcc_l2_mean": 1.9848131,
+      "pearsonr": 0.02149169092697107,
+      "pearsonr_p": 0.9102479913320737
+    }
+  }
+}

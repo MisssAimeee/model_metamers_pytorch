@@ -12,7 +12,7 @@ Writes to --out-dir (default: website/):
   data.json           (all metadata the JS app needs)
   audio/originals/    symlinks to reference wavs
   audio/metamers/     symlinks to metamer wavs (one folder per layer)
-  spectrograms/       PNG spectrograms for every wav
+  spectrograms/       PNG cochleagram-style maps for every wav
 
 Usage:
     cd /home/aimeeyu/mms_project
@@ -33,8 +33,9 @@ import numpy as np
 from scipy.io import wavfile
 import scipy.signal as scisig
 
-REPO_ROOT = Path(__file__).parent
-if (REPO_ROOT / "deep_avsr").exists():
+REPO_ROOT = Path(__file__).resolve().parent
+# Support running from inside model_metamers_pytorch/ OR from the parent dir
+if (REPO_ROOT / "results").exists():
     _RESULTS_BASE = REPO_ROOT / "results"
     _STIMULI_BASE = REPO_ROOT / "stimuli"
 else:
@@ -133,6 +134,42 @@ def safe_symlink(src: Path, dst: Path):
         shutil.copy2(str(src), str(dst))
 
 
+def load_layer_csv_records(csv_path: Path):
+    """Load layer comparison rows with or without a header.
+
+    Supported formats:
+      1) Headered:
+         stim_folder,wav_file,...,match_distance,metamer_wav
+      2) Headerless 6-col:
+         stim_folder,wav_file,layer,distance,category,metamer_wav
+    """
+    rows = []
+    with csv_path.open(newline="") as f:
+        sample = f.read(4096)
+        f.seek(0)
+        has_header = "match_distance" in sample.splitlines()[0] or "stim_folder" in sample.splitlines()[0]
+        if has_header:
+            for row in csv.DictReader(f):
+                rows.append({
+                    "stim_folder": row["stim_folder"],
+                    "wav_file": row["wav_file"],
+                    "distance": float(row["match_distance"]),
+                    "metamer_wav": row["metamer_wav"],
+                })
+        else:
+            reader = csv.reader(f)
+            for cols in reader:
+                if len(cols) < 6:
+                    continue
+                rows.append({
+                    "stim_folder": cols[0],
+                    "wav_file": cols[1],
+                    "distance": float(cols[3]),
+                    "metamer_wav": cols[5],
+                })
+    return rows
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CLI
 # ─────────────────────────────────────────────────────────────────────────────
@@ -189,12 +226,11 @@ def main():
         if not lcsv.exists():
             continue
         ld = {}
-        with lcsv.open(newline="") as f:
-            for row in csv.DictReader(f):
-                ld[(row["stim_folder"], row["wav_file"])] = {
-                    "distance":    float(row["match_distance"]),
-                    "metamer_wav": row["metamer_wav"],
-                }
+        for row in load_layer_csv_records(lcsv):
+            ld[(row["stim_folder"], row["wav_file"])] = {
+                "distance": row["distance"],
+                "metamer_wav": row["metamer_wav"],
+            }
         layer_entries[layer_name] = ld
 
     # ── Load null stats if available ──────────────────────────────────────────
@@ -259,7 +295,7 @@ def main():
 
                 layers_clip[layer_name] = {
                     "audio":    met_audio_rel,
-                    "spectrogram": spec_met_rel,
+            "spectrogram": spec_met_rel,
                     "distance": info["distance"],
                 }
 
@@ -312,8 +348,8 @@ def main():
 
     # ── Write data.json ───────────────────────────────────────────────────────
     data = {
-        "title":        "Deep AVSR Audio Metamers",
-        "subtitle":     "Metamer synthesis via the deep_avsr transformer backbone",
+        "title":        "Deep AVSR Metamer Explorer",
+        "subtitle":     "Interactive sound/layer browser with cochleagram-style maps and audio playback",
         "layers":       list(layer_entries.keys()),
         "categories":   ["environment", "music", "speech"],
         "cat_summary":  cat_summary,

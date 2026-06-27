@@ -384,11 +384,11 @@ audio::-webkit-media-controls-panel { background: var(--surface2); }
 <body>
 
 <header>
-  <h1>Deep AVSR Audio Metamers</h1>
+  <h1>Deep AVSR Metamer Explorer</h1>
   <p>
-    Model metamer synthesis using the
+    Layer-by-layer metamer analysis with the
     <strong>deep_avsr</strong> transformer backbone &mdash;
-    layer-by-layer analysis across 42 MUSHRA natural sounds
+    choose any sound, view cochleagram-style maps, and listen to original vs metamer audio.
   </p>
 </header>
 
@@ -449,14 +449,14 @@ audio::-webkit-media-controls-panel { background: var(--surface2); }
         <div class="audio-card" id="card-orig">
           <h3>Original <span class="card-tag">reference</span></h3>
           <div class="spectrogram-wrap" id="spec-orig-wrap">
-            <span class="spectrogram-placeholder">No spectrogram</span>
+            <span class="spectrogram-placeholder">No cochleagram</span>
           </div>
           <audio id="audio-orig" controls></audio>
         </div>
         <div class="audio-card" id="card-met">
           <h3>Metamer <span class="card-tag" id="layer-tag">audioEncoder</span></h3>
           <div class="spectrogram-wrap" id="spec-met-wrap">
-            <span class="spectrogram-placeholder">No spectrogram</span>
+            <span class="spectrogram-placeholder">No cochleagram</span>
           </div>
           <audio id="audio-met" controls></audio>
           <div class="distance-row">
@@ -651,11 +651,11 @@ function setSpectrogram(wrapId, src) {
   wrap.innerHTML = "";
   if (src) {
     const img = document.createElement("img");
-    img.src = src; img.alt = "spectrogram";
-    img.onerror = () => { wrap.innerHTML = '<span class="spectrogram-placeholder">No spectrogram</span>'; };
+    img.src = src; img.alt = "cochleagram";
+    img.onerror = () => { wrap.innerHTML = '<span class="spectrogram-placeholder">No cochleagram</span>'; };
     wrap.appendChild(img);
   } else {
-    wrap.innerHTML = '<span class="spectrogram-placeholder">No spectrogram</span>';
+    wrap.innerHTML = '<span class="spectrogram-placeholder">No cochleagram</span>';
   }
 }
 

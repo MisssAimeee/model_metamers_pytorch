@@ -126,7 +126,7 @@ def metamer_loss(target: torch.Tensor, current: torch.Tensor) -> torch.Tensor:
 # STFT helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def prepare_stft(wav_path: Path, device) -> torch.Tensor:
+def prepare_stft(wav_path: Path, device) -> tuple:
     sr, data = wavfile.read(str(wav_path))
     data = data.astype(np.float32)
     if data.ndim == 2:
@@ -140,6 +140,7 @@ def prepare_stft(wav_path: Path, device) -> torch.Tensor:
     min_len = int(sr * (win_s + 3 * (win_s - ovl_s)))
     if len(data) < min_len:
         data = np.pad(data, (0, min_len - len(data)), "constant")
+    target_samples = len(data)
     maxval = np.max(np.abs(data))
     if maxval > 0:
         data = data / maxval
@@ -153,31 +154,44 @@ def prepare_stft(wav_path: Path, device) -> torch.Tensor:
         boundary=None, padded=False,
     )
     audInp = np.abs(stftVals).T
+    n_real = audInp.shape[0]
     reqInpLen = _cfg["MAIN_REQ_INPUT_LENGTH"]
     inpLen = int(np.ceil(len(audInp) / 4))
     lp = int(np.floor((4 * inpLen - len(audInp)) / 2))
     rp = int(np.ceil( (4 * inpLen - len(audInp)) / 2))
     audInp = np.pad(audInp, ((lp, rp), (0, 0)), "constant")
+    valid_start = lp
     if inpLen < reqInpLen:
         lp2 = int(np.floor((reqInpLen - inpLen) / 2))
         rp2 = int(np.ceil( (reqInpLen - inpLen) / 2))
         audInp = np.pad(audInp, ((4 * lp2, 4 * rp2), (0, 0)), "constant")
-    return torch.from_numpy(audInp).unsqueeze(1).float().to(device)
+        valid_start += 4 * lp2
+    meta = {"valid_start": valid_start, "n_real": n_real, "target_samples": target_samples}
+    return torch.from_numpy(audInp).unsqueeze(1).float().to(device), meta
 
 
-def stft_to_wav(stft_mag: torch.Tensor, out_path: Path, gl_iters: int = 64):
+def stft_to_wav(stft_mag: torch.Tensor, out_path: Path, gl_iters: int = 64,
+                crop: tuple = None, target_samples: int = None):
     nperseg  = int(TARGET_SR * _cfg["STFT_WIN_LENGTH"])
     noverlap = int(TARGET_SR * _cfg["STFT_OVERLAP"])
     hop_len  = nperseg - noverlap
     mag = stft_mag.detach().cpu().float()
     if mag.dim() == 3:
         mag = mag.squeeze(1)
+    if crop is not None:
+        start, n = crop
+        mag = mag[start:start + n]   # drop zero-padded frames at both ends
     mag = mag.T.unsqueeze(0)   # (1, F, T)
     gl = torchaudio.transforms.GriffinLim(
         n_fft=nperseg, hop_length=hop_len, win_length=nperseg,
-        window_fn=torch.hann_window, n_iter=gl_iters, power=1.0,
+        window_fn=torch.hamming_window, n_iter=gl_iters, power=1.0,
     )
     wav = gl(mag).squeeze(0)
+    if target_samples is not None:
+        if wav.numel() >= target_samples:
+            wav = wav[:target_samples]
+        else:
+            wav = F.pad(wav, (0, target_samples - wav.numel()))
     wav = wav / wav.abs().max().clamp_min(1e-8)
     wav_int16 = (wav.clamp(-1, 1) * 32767).short().numpy()
     from scipy.io import wavfile as _wf
@@ -299,9 +313,19 @@ def run_one_layer(
                   "category", "metamer_wav"]
 
     completed_wavs = set()
-    if args.resume and csv_path.exists():
+    csv_has_content = csv_path.exists() and csv_path.stat().st_size > 0
+    if args.resume and csv_has_content:
         with csv_path.open(newline="") as f:
-            for row in csv.DictReader(f):
+            # Detect whether the file has a header row by peeking at column 0
+            first = f.readline().strip().split(",")[0]
+            f.seek(0)
+            if first == "stim_folder":
+                reader = csv.DictReader(f)
+            else:
+                # File was written without a header (common when --resume was
+                # used from the very first run); supply fieldnames explicitly
+                reader = csv.DictReader(f, fieldnames=fieldnames)
+            for row in reader:
                 completed_wavs.add((row["stim_folder"], row["wav_file"]))
         print(f"  [resume] found {len(completed_wavs)} completed wavs")
 
@@ -309,9 +333,12 @@ def run_one_layer(
     done_count  = 0
     rows        = []
 
-    with csv_path.open("a" if args.resume else "w", newline="") as csv_fh:
+    # Open for append only when there is already content to preserve;
+    # otherwise start fresh with a header.
+    append_mode = args.resume and csv_has_content
+    with csv_path.open("a" if append_mode else "w", newline="") as csv_fh:
         writer = csv.DictWriter(csv_fh, fieldnames=fieldnames)
-        if not args.resume:
+        if not append_mode:
             writer.writeheader()
 
         for stim_dir in stim_dirs:
@@ -331,7 +358,7 @@ def run_one_layer(
                 if torch.cuda.is_available():
                     torch.cuda.manual_seed_all(local_seed)
 
-                ref_stft = prepare_stft(wav_path, device)
+                ref_stft, meta = prepare_stft(wav_path, device)
                 print(f"    synthesising ({args.n_iters} iters, layer={layer_name}) …")
                 met_stft, history, dist = synthesize_metamer(
                     net, ref_stft, layer_name,
@@ -342,7 +369,11 @@ def run_one_layer(
                 stim_out = out_layer_dir / stim_dir.name / wav_path.stem
                 stim_out.mkdir(parents=True, exist_ok=True)
                 met_wav = stim_out / "metamer_audio.wav"
-                stft_to_wav(met_stft, met_wav, args.gl_iters)
+                stft_to_wav(
+                    met_stft, met_wav, args.gl_iters,
+                    crop=(meta["valid_start"], meta["n_real"]),
+                    target_samples=meta["target_samples"],
+                )
                 torch.save(met_stft.cpu(), stim_out / "metamer_stft.pt")
                 (stim_out / "match_distance.txt").write_text(
                     f"{layer_name}\t{dist:.6f}\n"
